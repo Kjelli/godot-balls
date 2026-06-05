@@ -1,0 +1,71 @@
+[gd_scene load_steps=2 format=3 uid="uid://bkvhsmihqan3x"]
+
+[ext_resource type="PackedScene" uid="uid://ccvo0xig601ow" path="res://scenes/objects/ball.tscn" id="1_lgrwq"]
+
+[node name="Scene" type="Node2D"]
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(-1, 0)
+
+[node name="Cue" parent="." instance=ExtResource("1_lgrwq")]
+position = Vector2(0, 42)
+
+[node name="1" parent="." instance=ExtResource("1_lgrwq")]
+position = Vector2(0, 8)
+ball_type = 1
+
+[node name="2" parent="." instance=ExtResource("1_lgrwq")]
+position = Vector2(-27, -34)
+ball_type = 2
+
+[node name="3" parent="." instance=ExtResource("1_lgrwq")]
+position = Vector2(-9, -6)
+ball_type = 3
+
+[node name="4" parent="." instance=ExtResource("1_lgrwq")]
+position = Vector2(9, -34)
+ball_type = 4
+
+[node name="5" parent="." instance=ExtResource("1_lgrwq")]
+position = Vector2(0, -48)
+ball_type = 5
+
+[node name="6" parent="." instance=ExtResource("1_lgrwq")]
+position = Vector2(18, -20)
+ball_type = 6
+
+[node name="7" parent="." instance=ExtResource("1_lgrwq")]
+position = Vector2(-36, -48)
+ball_type = 7
+
+[node name="8" parent="." instance=ExtResource("1_lgrwq")]
+position = Vector2(0, -20)
+ball_type = 8
+
+[node name="9" parent="." instance=ExtResource("1_lgrwq")]
+position = Vector2(27, -34)
+ball_type = 9
+
+[node name="10" parent="." instance=ExtResource("1_lgrwq")]
+position = Vector2(9, -6)
+ball_type = 10
+
+[node name="11" parent="." instance=ExtResource("1_lgrwq")]
+position = Vector2(18, -48)
+ball_type = 11
+
+[node name="12" parent="." instance=ExtResource("1_lgrwq")]
+position = Vector2(-18, -48)
+ball_type = 12
+
+[node name="13" parent="." instance=ExtResource("1_lgrwq")]
+position = Vector2(-18, -20)
+ball_type = 13
+
+[node name="14" parent="." instance=ExtResource("1_lgrwq")]
+position = Vector2(36, -48)
+ball_type = 14
+
+[node name="15" parent="." instance=ExtResource("1_lgrwq")]
+position = Vector2(-9, -34)
+ball_type = 15

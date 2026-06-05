@@ -1,0 +1,26 @@
+[gd_scene load_steps=7 format=3 uid="uid://ccvo0xig601ow"]
+
+[ext_resource type="Script" uid="uid://c3wefcokoabwj" path="res://scenes/objects/ball.gd" id="1_ynld4"]
+[ext_resource type="Shader" uid="uid://c0b1rlf2e3t33" path="res://assets/shaders/ball-texture.gdshader" id="2_8c8aa"]
+[ext_resource type="Texture2D" uid="uid://baf2xqh8gn1le" path="res://assets/sprites/balls/cue.png" id="3_ynld4"]
+[ext_resource type="Texture2D" uid="uid://ckbmhryiouyxd" path="res://assets/sprites/ball.png" id="4_uekb7"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_8c8aa"]
+shader = ExtResource("2_8c8aa")
+shader_parameter/scroll_texture = ExtResource("3_ynld4")
+shader_parameter/rotation_basis = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_hqhvd"]
+radius = 6.0
+
+[node name="Ball" type="CharacterBody2D"]
+motion_mode = 1
+script = ExtResource("1_ynld4")
+
+[node name="Sprite" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+material = SubResource("ShaderMaterial_8c8aa")
+texture = ExtResource("4_uekb7")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_hqhvd")
