@@ -1,4 +1,5 @@
 @tool
+class_name Ball
 extends CharacterBody2D
 
 enum BallType {
@@ -44,11 +45,14 @@ const TEXTURE_MAP := {
 		ball_type = value
 		_update_ball_texture()
 
-const MAX_SPEED := 100.0
-const ACCELERATION := 500.0
-const FRICTION := 40.0
+const MAX_SPEED := 200.0
+const ACCELERATION := 800.0
+const FRICTION := 20.0
+const RESTITUTION = 0.93
 
 @onready var sprite := %Sprite
+
+var input_dir := Vector2.ZERO
 
 # Texture offset (fake roll)
 var scroll_speed := Vector2.ZERO
@@ -56,17 +60,26 @@ var ball_basis := Basis.IDENTITY
 var ball_radius: float = 16.0
 
 func _ready() -> void:
+	position += Vector2(
+		randf_range(-0.2, 0.2),
+		randf_range(-0.2, 0.2)
+	)
 	sprite.material = sprite.material.duplicate()
 	_update_ball_texture()
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
-	
-	var input_dir := Vector2.ZERO
-	input_dir.x = Input.get_axis("Move Left", "Move Right")
-	input_dir.y = Input.get_axis("Move Up", "Move Down")
-	input_dir = input_dir.normalized()
+		
+
+func _physics_process(delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
+		
+	if ball_type == BallType.CUE_BALL:
+		input_dir.x = Input.get_axis("Move Left", "Move Right")
+		input_dir.y = Input.get_axis("Move Up", "Move Down")
+		input_dir = input_dir.normalized()
 	
 	if input_dir != Vector2.ZERO:
 		velocity += input_dir * ACCELERATION * delta
@@ -75,10 +88,10 @@ func _process(delta: float) -> void:
 		velocity = velocity.move_toward(Vector2.ZERO, FRICTION * delta)
 	
 	if velocity.length() > 0.001:
-		var distance = velocity.length() * delta
+		var distance = (velocity.length() + ball_radius) * delta
 		var move_dir = velocity.normalized()
 
-		var axis = Vector3(move_dir.y, -move_dir.x, 0.0 ).normalized()
+		var axis = Vector3(move_dir.y, -move_dir.x, 0.0).normalized()
 		var angle = distance / ball_radius
 		var ball_rotation = Basis(axis, angle)
 
@@ -91,7 +104,26 @@ func _process(delta: float) -> void:
 	
 	var collision = move_and_collide(velocity * delta)
 	if collision:
-		pass
+		var other = collision.get_collider()
+		var normal = collision.get_normal()
+		
+		# chaos
+		var random_angle = randf_range(-0.03, 0.03)
+		normal = normal.rotated(random_angle)
+		
+		if other is TileMapLayer:
+			velocity = velocity.bounce(normal)
+			pass
+		elif other is Ball:
+
+			var v1n = normal * velocity.dot(normal)
+			var v1t = velocity - v1n
+
+			var v2n = normal * other.velocity.dot(normal)
+			var v2t = other.velocity - v2n
+
+			velocity = (v2n * RESTITUTION) + v1t
+			other.velocity = (v1n * RESTITUTION) + v2t
 
 func _update_ball_texture() -> void:
 	if not is_node_ready():
