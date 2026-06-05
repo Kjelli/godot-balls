@@ -45,8 +45,8 @@ const TEXTURE_MAP := {
 		_update_ball_texture()
 
 const MAX_SPEED := 100.0
-const ACCELERATION := 250.0
-const FRICTION := 20.0
+const ACCELERATION := 500.0
+const FRICTION := 40.0
 
 @onready var sprite := %Sprite
 
@@ -89,7 +89,9 @@ func _process(delta: float) -> void:
 			ball_basis
 		)
 	
-	move_and_slide()
+	var collision = move_and_collide(velocity * delta)
+	if collision:
+		pass
 
 func _update_ball_texture() -> void:
 	if not is_node_ready():
