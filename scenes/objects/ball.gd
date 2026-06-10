@@ -44,77 +44,180 @@ const TEXTURE_MAP := {
 	set(value):
 		ball_type = value
 		_update_ball_texture()
+		
+enum BallState {
+	UNCONTROLLABLE,
+	IDLE,
+	AIMING,
+	ROLLING
+}
 
-const MAX_SPEED := 200.0
-const ACCELERATION := 800.0
 const FRICTION := 20.0
 const RESTITUTION = 0.93
+const BALL_STRENGTH = 5.0
 
 @onready var sprite := %Sprite
-
-var input_dir := Vector2.ZERO
 
 # Texture offset (fake roll)
 var scroll_speed := Vector2.ZERO
 var ball_basis := Basis.IDENTITY
 var ball_radius: float = 16.0
 
+var start_position := Vector2.ZERO
+var target_position := Vector2.ZERO
+var power := 0.0
+
+var ball_state := BallState.UNCONTROLLABLE :
+	get(): 
+		return ball_state
+	set(value): 
+		ball_state = value
+		
+		
 func _ready() -> void:
-	position += Vector2(
-		randf_range(-0.2, 0.2),
-		randf_range(-0.2, 0.2)
-	)
+	if not Engine.is_editor_hint():
+		position += Vector2(
+			randf_range(-0.2, 0.2),
+			randf_range(-0.2, 0.2)
+		)
+	
+	if ball_type == BallType.CUE_BALL:
+		ball_state = BallState.IDLE
+		
+	else: 
+		%Cue.queue_free()
+	
 	sprite.material = sprite.material.duplicate()
 	_update_ball_texture()
+	
+
+func _input(event: InputEvent) -> void:
+	match ball_state:
+		BallState.UNCONTROLLABLE:
+			return
+			
+		BallState.IDLE:
+			if event is InputEventMouseButton and event.is_pressed():
+				_start_aim()
+				
+		BallState.AIMING:
+			if event is InputEventMouseMotion:
+				_aim()
+
+			if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+				if not event.pressed:
+					_roll()
+
+func set_ready() -> void:
+	if ball_state != BallState.ROLLING or velocity.length() > 0.001:
+		return
+	
+	ball_state = BallState.IDLE
+
+func _start_aim() -> void:
+	(%Cue as Cue).spin_speed = 0.0
+	power = 0
+	start_position = get_local_mouse_position()
+	target_position = start_position
+	ball_state = BallState.AIMING
+	
+	%AimLine.points[1] = %AimLine.points[0]
+	
+func cancel_aim() -> void:
+	(%Cue as Cue).spin_speed = 0.0
+	power = 0
+	ball_state = BallState.IDLE
+
+func _aim() -> void:
+	target_position = target_position.lerp(get_local_mouse_position(), 0.1)
+	var vector = start_position - target_position
+	var length = vector.length()
+	
+	power = clampf(0.5 * length, 0, 100)
+	
+	%AimLine.points[1] = vector.normalized() * power * BALL_STRENGTH
+	%CueRotation.global_rotation = vector.angle()
+	%Cue.position.x = - power / 2 - 112
+	
+	if power >= 5:
+		(%Cue as Cue).spin_speed = (power / 100) * 10.0
+	else: 
+		(%Cue as Cue).spin_speed = 0.0
+
+func _roll() -> void:
+	if power < 5:
+		cancel_aim()
+		return
+	
+	var translate_tween = get_tree().create_tween()
+	translate_tween.tween_property(%Cue, 'position:x', -110, 0.05)
+	translate_tween.play()
+	await translate_tween.finished
+	
+	ball_state = BallState.ROLLING
+	EventBus.stick_hit_ball.emit(self, power)
+	velocity = (%AimLine.points[1] - %AimLine.points[0]).normalized() * power * BALL_STRENGTH
 
 func _process(_delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
+	
+	var target_alpha = 1.0 if ball_state == BallState.AIMING else 0.0
+	if %AimLine:
+		%AimLine.modulate.a = lerp(%AimLine.modulate.a, target_alpha, 0.2)
+	if %Cue:
+		(%Cue as Cue).alpha = lerp(%Cue.alpha, target_alpha, 0.2)
 		
-
+	match ball_state:
+		BallState.UNCONTROLLABLE:
+			return
+		BallState.IDLE:
+			pass	
+		BallState.AIMING:
+			_aim()
+		BallState.ROLLING:
+			pass
+		
 func _physics_process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 		
-	if ball_type == BallType.CUE_BALL:
-		input_dir.x = Input.get_axis("Move Left", "Move Right")
-		input_dir.y = Input.get_axis("Move Up", "Move Down")
-		input_dir = input_dir.normalized()
-	
-	if input_dir != Vector2.ZERO:
-		velocity += input_dir * ACCELERATION * delta
-		velocity = velocity.limit_length(MAX_SPEED)
-	else:
-		velocity = velocity.move_toward(Vector2.ZERO, FRICTION * delta)
+	velocity = velocity.move_toward(Vector2.ZERO, FRICTION * delta)
 	
 	if velocity.length() > 0.001:
-		var distance = (velocity.length() + ball_radius) * delta
-		var move_dir = velocity.normalized()
+		_move(delta)
+	else:
+		velocity = Vector2.ZERO
 
-		var axis = Vector3(move_dir.y, -move_dir.x, 0.0).normalized()
-		var angle = distance / ball_radius
-		var ball_rotation = Basis(axis, angle)
+func _move(delta: float) -> void:
+	var distance = (velocity.length() + ball_radius) * delta
+	var move_dir = velocity.normalized()
 
-		ball_basis = ball_basis * ball_rotation
+	var axis = Vector3(move_dir.y, -move_dir.x, 0.0).normalized()
+	var angle = distance / ball_radius
+	var ball_rotation = Basis(axis, angle)
 
-		sprite.material.set_shader_parameter(
-			"rotation_basis",
-			ball_basis
-		)
-	
+	ball_basis = ball_basis * ball_rotation
+
+	sprite.material.set_shader_parameter(
+		"rotation_basis",
+		ball_basis
+	)
+
 	var collision = move_and_collide(velocity * delta)
 	if collision:
 		var other = collision.get_collider()
 		var normal = collision.get_normal()
 		
-		# chaos
-		var random_angle = randf_range(-0.03, 0.03)
-		normal = normal.rotated(random_angle)
-		
 		if other is TileMapLayer:
+			EventBus.ball_hit_wall.emit(self)
 			velocity = velocity.bounce(normal)
-			pass
+		
 		elif other is Ball:
+			EventBus.ball_hit_ball.emit(self, other)
+			# chaos
+			var random_angle = randf_range(-0.03, 0.03)
+			normal = normal.rotated(random_angle)
 
 			var v1n = normal * velocity.dot(normal)
 			var v1t = velocity - v1n

@@ -3,6 +3,7 @@ shader_type canvas_item;
 uniform sampler2D scroll_texture : repeat_enable, filter_nearest;
 
 uniform mat3 rotation_basis;
+uniform float alpha :  hint_range(0.0, 1.0) = 1.0;
 
 void fragment() {
     vec4 base_color = texture(TEXTURE, UV);
@@ -31,5 +32,5 @@ void fragment() {
 
     vec4 detail = texture(scroll_texture, sphere_uv);
 
-    COLOR = vec4(base_color.rgb * detail.rgb, base_color.a);
+    COLOR = vec4(base_color.rgb * detail.rgb, base_color.a * alpha);
 }
