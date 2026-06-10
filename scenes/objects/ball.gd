@@ -2,8 +2,27 @@
 class_name Ball
 extends CharacterBody2D
 
+const TERRAIN_FIELD := 0
+const TERRAIN_WALL := 1
+const TERRAIN_HOLE := 2
+
+const COLLISION_MASK_BALL := 1
+const COLLISION_MASK_WALL := 2
+const COLLISION_MASK_HOLE := 3
+
+const FRICTION := 30.0
+const RESTITUTION = 0.93
+
 enum BallType {
 	CUE_BALL,
+	
+	SOLID_YELLOW,
+	SOLID_BLUE,
+	SOLID_BLACK,
+	SOLID_GREEN,
+	SOLID_BROWN,
+	SOLID_PINK,
+	
 	SOLID_1, 
 	SOLID_2, 
 	SOLID_3, 
@@ -18,11 +37,20 @@ enum BallType {
 	STRIPE_12,  
 	STRIPE_13,  
 	STRIPE_14, 
-	STRIPE_15   
+	STRIPE_15
 }
 
 const TEXTURE_MAP := {
 	BallType.CUE_BALL: "res://assets/sprites/balls/cue.png",
+	
+	BallType.SOLID_YELLOW: "res://assets/sprites/balls/solid_yellow.png",
+	BallType.SOLID_BLUE: "res://assets/sprites/balls/solid_blue.png",
+	BallType.SOLID_BLACK: "res://assets/sprites/balls/solid_black.png",
+	BallType.SOLID_GREEN: "res://assets/sprites/balls/solid_green.png",
+	BallType.SOLID_BROWN: "res://assets/sprites/balls/solid_brown.png",
+	BallType.SOLID_PINK: "res://assets/sprites/balls/solid_pink.png",
+	
+	
 	BallType.SOLID_1: "res://assets/sprites/balls/solid_1.png",
 	BallType.SOLID_2: "res://assets/sprites/balls/solid_2.png",
 	BallType.SOLID_3: "res://assets/sprites/balls/solid_3.png",
@@ -40,154 +68,64 @@ const TEXTURE_MAP := {
 	BallType.STRIPE_15: "res://assets/sprites/balls/stripe_15.png"
 }
 
-@export var ball_type: BallType = BallType.CUE_BALL:
+
+@export var ball_type: BallType = BallType.EIGHT_BALL:
 	set(value):
 		ball_type = value
 		_update_ball_texture()
 		
-enum BallState {
-	UNCONTROLLABLE,
-	IDLE,
-	AIMING,
-	ROLLING
-}
-
-const FRICTION := 20.0
-const RESTITUTION = 0.93
-const BALL_STRENGTH = 5.0
-
 @onready var sprite := %Sprite
 
-# Texture offset (fake roll)
-var scroll_speed := Vector2.ZERO
-var ball_basis := Basis.IDENTITY
-var ball_radius: float = 16.0
-
-var start_position := Vector2.ZERO
-var target_position := Vector2.ZERO
-var power := 0.0
-
-var ball_state := BallState.UNCONTROLLABLE :
+var ball_basis := Basis.IDENTITY : 
+	get(): return ball_basis
+	set(value):
+		ball_basis = value
+		sprite.material.set_shader_parameter("rotation_basis", ball_basis)
+		
+var alpha := 1.0 :
 	get(): 
-		return ball_state
+		return alpha
 	set(value): 
-		ball_state = value
+		alpha = value
+		sprite.material.set_shader_parameter("alpha", alpha)
 		
-		
+var ball_radius: float = 16.0
+var sink_point: Vector2
+var is_moving: bool = false
+
 func _ready() -> void:
 	if not Engine.is_editor_hint():
+		# chaos
 		position += Vector2(
 			randf_range(-0.2, 0.2),
 			randf_range(-0.2, 0.2)
 		)
 	
-	if ball_type == BallType.CUE_BALL:
-		ball_state = BallState.IDLE
-		
-	else: 
-		%Cue.queue_free()
+	%Hat.rotation = randf_range(-PI/4, PI/4)
 	
 	sprite.material = sprite.material.duplicate()
 	_update_ball_texture()
-	
-
-func _input(event: InputEvent) -> void:
-	match ball_state:
-		BallState.UNCONTROLLABLE:
-			return
-			
-		BallState.IDLE:
-			if event is InputEventMouseButton and event.is_pressed():
-				_start_aim()
-				
-		BallState.AIMING:
-			if event is InputEventMouseMotion:
-				_aim()
-
-			if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-				if not event.pressed:
-					_roll()
-
-func set_ready() -> void:
-	if ball_state != BallState.ROLLING or velocity.length() > 0.001:
-		return
-	
-	ball_state = BallState.IDLE
-
-func _start_aim() -> void:
-	(%Cue as Cue).spin_speed = 0.0
-	power = 0
-	start_position = get_local_mouse_position()
-	target_position = start_position
-	ball_state = BallState.AIMING
-	
-	%AimLine.points[1] = %AimLine.points[0]
-	
-func cancel_aim() -> void:
-	(%Cue as Cue).spin_speed = 0.0
-	power = 0
-	ball_state = BallState.IDLE
-
-func _aim() -> void:
-	target_position = target_position.lerp(get_local_mouse_position(), 0.1)
-	var vector = start_position - target_position
-	var length = vector.length()
-	
-	power = clampf(0.5 * length, 0, 100)
-	
-	%AimLine.points[1] = vector.normalized() * power * BALL_STRENGTH
-	%CueRotation.global_rotation = vector.angle()
-	%Cue.position.x = - power / 2 - 112
-	
-	if power >= 5:
-		(%Cue as Cue).spin_speed = (power / 100) * 10.0
-	else: 
-		(%Cue as Cue).spin_speed = 0.0
-
-func _roll() -> void:
-	if power < 5:
-		cancel_aim()
-		return
-	
-	var translate_tween = get_tree().create_tween()
-	translate_tween.tween_property(%Cue, 'position:x', -110, 0.05)
-	translate_tween.play()
-	await translate_tween.finished
-	
-	ball_state = BallState.ROLLING
-	EventBus.stick_hit_ball.emit(self, power)
-	velocity = (%AimLine.points[1] - %AimLine.points[0]).normalized() * power * BALL_STRENGTH
 
 func _process(_delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
-	
-	var target_alpha = 1.0 if ball_state == BallState.AIMING else 0.0
-	if %AimLine:
-		%AimLine.modulate.a = lerp(%AimLine.modulate.a, target_alpha, 0.2)
-	if %Cue:
-		(%Cue as Cue).alpha = lerp(%Cue.alpha, target_alpha, 0.2)
-		
-	match ball_state:
-		BallState.UNCONTROLLABLE:
-			return
-		BallState.IDLE:
-			pass	
-		BallState.AIMING:
-			_aim()
-		BallState.ROLLING:
-			pass
 		
 func _physics_process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 		
+	var currently_moving = velocity.length_squared() > 0.0001
+	
 	velocity = velocity.move_toward(Vector2.ZERO, FRICTION * delta)
 	
-	if velocity.length() > 0.001:
+	if velocity.length_squared() > 0.0001:
 		_move(delta)
 	else:
 		velocity = Vector2.ZERO
+		
+	if currently_moving != is_moving:
+		is_moving = currently_moving
+		EventBus.ball_movement_changed.emit(self, is_moving)
 
 func _move(delta: float) -> void:
 	var distance = (velocity.length() + ball_radius) * delta
@@ -199,34 +137,89 @@ func _move(delta: float) -> void:
 
 	ball_basis = ball_basis * ball_rotation
 
-	sprite.material.set_shader_parameter(
-		"rotation_basis",
-		ball_basis
-	)
-
 	var collision = move_and_collide(velocity * delta)
-	if collision:
-		var other = collision.get_collider()
-		var normal = collision.get_normal()
+	_handle_collision(collision)
+
+func _handle_collision(collision: KinematicCollision2D) -> void:
+	if not collision:
+		return
 		
-		if other is TileMapLayer:
+	var other = collision.get_collider()
+	var normal = collision.get_normal()
+	
+	if other is TileMapLayer:
+		var layer := other as TileMapLayer
+		
+		# Convert collision point into tile coordinates
+		var local_pos := layer.to_local(collision.get_position() + velocity.normalized())
+		
+		# Debug cross on local coordinates
+		#var debug_line = Line2D.new()
+		#debug_line.width = 0.2
+		#debug_line.add_point(local_pos + Vector2(-2, -2))
+		#debug_line.add_point(local_pos + Vector2(2, 2))
+		#var debug_line2 = Line2D.new()
+		#debug_line2.width = 0.2
+		#debug_line2.add_point(local_pos + Vector2(2, -2))
+		#debug_line2.add_point(local_pos + Vector2(-2, 2))
+		#get_tree().current_scene.add_child(debug_line)
+		#get_tree().current_scene.add_child(debug_line2)
+		
+		var cell = layer.local_to_map(local_pos)
+
+		# Verify there is actually a tile there
+		var tile_data: TileData = layer.get_cell_tile_data(cell)
+		if tile_data == null:
+			return
+
+		var is_hole = tile_data.terrain == TERRAIN_HOLE
+
+		if is_hole:
+			velocity = Vector2.ZERO
+			sink_point = local_pos
+			_sink()
+		else:
 			EventBus.ball_hit_wall.emit(self)
-			velocity = velocity.bounce(normal)
+			velocity = velocity.bounce(normal) * 0.8
+	
+	elif other is Ball:
+		EventBus.ball_hit_ball.emit(self, other)
+		# chaos
+		var random_angle = randf_range(-0.03, 0.03)
+		normal = normal.rotated(random_angle)
+
+		var v1n = normal * velocity.dot(normal)
+		var v1t = velocity - v1n
+
+		var v2n = normal * other.velocity.dot(normal)
+		var v2t = other.velocity - v2n
+
+		velocity = (v2n * RESTITUTION) + v1t
+		other.velocity = (v1n * RESTITUTION) + v2t
+
+func _set_collision_enabled(value: bool):
+	self.set_collision_mask_value(COLLISION_MASK_HOLE, value)
+	self.set_collision_layer_value(COLLISION_MASK_HOLE, value)
+	self.set_collision_layer_value(COLLISION_MASK_BALL, value)
+	self.set_collision_mask_value(COLLISION_MASK_BALL, value)
+
+func _sink() -> void:
+	EventBus.ball_sunk.emit(self)
+	_set_collision_enabled(false)
+	
+	var tween = create_tween().set_parallel()
+	tween.tween_property(self, "position", sink_point, 0.25) \
+		.set_ease(Tween.EASE_OUT) \
+		.set_trans(Tween.TRANS_QUART)
+	tween.tween_property(self, "scale", Vector2(0.1, 0.1), 0.35) \
+		.set_ease(Tween.EASE_OUT) \
+		.set_trans(Tween.TRANS_QUART)
+	tween.tween_property(self, "alpha", 0.4, 0.35) \
+		.set_ease(Tween.EASE_OUT) \
+		.set_trans(Tween.TRANS_QUART)
 		
-		elif other is Ball:
-			EventBus.ball_hit_ball.emit(self, other)
-			# chaos
-			var random_angle = randf_range(-0.03, 0.03)
-			normal = normal.rotated(random_angle)
-
-			var v1n = normal * velocity.dot(normal)
-			var v1t = velocity - v1n
-
-			var v2n = normal * other.velocity.dot(normal)
-			var v2t = other.velocity - v2n
-
-			velocity = (v2n * RESTITUTION) + v1t
-			other.velocity = (v1n * RESTITUTION) + v2t
+	await tween.finished
+	
 
 func _update_ball_texture() -> void:
 	if not is_node_ready():

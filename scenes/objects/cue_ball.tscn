@@ -1,0 +1,62 @@
+[gd_scene load_steps=12 format=3 uid="uid://blnrh5h0w7tgd"]
+
+[ext_resource type="Shader" uid="uid://c0b1rlf2e3t33" path="res://assets/shaders/ball-texture.gdshader" id="2_3ui7o"]
+[ext_resource type="Texture2D" uid="uid://baf2xqh8gn1le" path="res://assets/sprites/balls/cue.png" id="3_kqhw8"]
+[ext_resource type="Texture2D" uid="uid://ckbmhryiouyxd" path="res://assets/sprites/ball.png" id="4_1oom1"]
+[ext_resource type="Shader" uid="uid://da02ixsodst18" path="res://assets/shaders/cue-texture.gdshader" id="5_f08jk"]
+[ext_resource type="Texture2D" uid="uid://c1y31bwwdptp4" path="res://assets/sprites/cues/cue_texture.png" id="6_j0uh7"]
+[ext_resource type="Texture2D" uid="uid://bwjcdvpfdcb5a" path="res://assets/sprites/cues/qq.png" id="7_ndafi"]
+[ext_resource type="Script" uid="uid://kkc31elcmye3" path="res://scenes/objects/cue.gd" id="8_84lch"]
+[ext_resource type="Script" uid="uid://d2hanmxajoxem" path="res://scenes/objects/cue_ball.gd" id="10_1oom1"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_tvxdq"]
+shader = ExtResource("2_3ui7o")
+shader_parameter/scroll_texture = ExtResource("3_kqhw8")
+shader_parameter/rotation_basis = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
+shader_parameter/alpha = 1.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_hqhvd"]
+radius = 15.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_uekb7"]
+shader = ExtResource("5_f08jk")
+shader_parameter/scroll_texture = ExtResource("6_j0uh7")
+shader_parameter/rotation_basis = Basis(1, 0, 0, 0, 0.015922377, -0.9998732, 0, 0.9998732, 0.015922377)
+shader_parameter/alpha = 1.0
+
+[node name="Ball" type="CharacterBody2D" groups=["Balls"]]
+scale = Vector2(0.25, 0.25)
+collision_mask = 7
+input_pickable = true
+motion_mode = 1
+wall_min_slide_angle = 3.1415927
+script = ExtResource("10_1oom1")
+ball_type = 0
+
+[node name="AimLine" type="Line2D" parent="."]
+unique_name_in_owner = true
+visible = false
+modulate = Color(1, 1, 1, 0)
+points = PackedVector2Array(0, 0, 196, 0)
+width = 2.0
+end_cap_mode = 2
+
+[node name="Sprite" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+material = SubResource("ShaderMaterial_tvxdq")
+texture = ExtResource("4_1oom1")
+
+[node name="Hitbox" type="CollisionShape2D" parent="."]
+unique_name_in_owner = true
+visible = false
+shape = SubResource("CircleShape2D_hqhvd")
+
+[node name="CueRotation" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="Cue" type="Sprite2D" parent="CueRotation"]
+unique_name_in_owner = true
+material = SubResource("ShaderMaterial_uekb7")
+position = Vector2(-112, 0)
+texture = ExtResource("7_ndafi")
+script = ExtResource("8_84lch")
